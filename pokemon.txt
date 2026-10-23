@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Pokémon: Oleadas de Sinnoh</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+    min-height: 100vh;
+    padding: 20px;
+    overflow-x: hidden;
+}
+#game {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: rgba(0,0,0,0.6);
+    border: 3px solid #ffd700;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 0 30px rgba(255,215,0,0.3);
+}
+h1 {
+    text-align: center;
+    color: #ffd700;
+    text-shadow: 2px 2px 4px #000;
+    margin-bottom: 10px;
+    font-size: 2em;
+}
+h2 { color: #ffd700; margin: 15px 0 10px; border-bottom: 2px solid #ffd700; padding-bottom: 5px; }
+.screen { display: none; }
+.screen.active { display: block; animation: fadeIn 0.5s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.title-box {
+    text-align: center;
+    padding: 30px;
+    background: linear-gradient(45deg, #e63946, #f1c40f);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+.title-box h1 { font-size: 2.5em; margin: 0; }
+
+.pokemon-card {
+    background: rgba(255,255,255,0.1);
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.pokemon-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(255,215,0,0.4);
+    border-color: #ffd700;
+}
+.pokemon-card.selected {
+    border-color: #00ff00;
+    background: rgba(0,255,0,0.1);
+}
+.pokemon-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sprite {
+    width: 80px;
+    height: 80px;
+    font-size: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, rgba(255,255,255,0.2), transparent);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.sprite.large { width: 120px; height: 120px; font-size: 90px; }
+.sprite.boss { width: 150px; height: 150px; font-size: 110px; animation: bossFloat 2s infinite ease-in-out; }
+@keyframes bossFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+.tipo {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin: 2px;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+.tipo-Fuego { background: #F08030; }
+.tipo-Agua { background: #6890F0; }
+.tipo-Planta { background: #78C850; }
+.tipo-Electrico { background: #F8D030; color: #000; }
+.tipo-Hielo { background: #98D8D8; color: #000; }
+.tipo-Lucha { background: #C03028; }
+.tipo-Veneno { background: #A040A0; }
+.tipo-Tierra { background: #E0C068; color: #000; }
+.tipo-Volador { background: #A890F0; }
+.tipo-Psiquico { background: #F85888; }
+.tipo-Bicho { background: #A8B820; }
+.tipo-Roca { background: #B8A038; }
+.tipo-Fantasma { background: #705898; }
+.tipo-Dragon { background: #7038F8; }
+.tipo-Siniestro { background: #705848; }
+.tipo-Acero { background: #B8B8D0; color: #000; }
+.tipo-Normal { background: #A8A878; }
+
+.hp-bar-container {
+    background: #333;
+    border: 2px solid #555;
+    border-radius: 10px;
+    height: 20px;
+    overflow: hidden;
+    position: relative;
+    margin: 5px 0;
+}
+.hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    transition: width 0.5s;
+}
+.hp-bar.medium { background: linear-gradient(90deg, #FFC107, #FF9800); }
+.hp-bar.low { background: linear-gradient(90deg, #F44336, #E91E63); }
+.hp-bar-text {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85em; font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.shield-bar {
+    background: linear-gradient(90deg, #00BCD4, #03A9F4);
+}
+
+.battle-field {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+}
+.battle-side {
+    background: rgba(0,0,0,0.4);
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 15px;
+}
+.enemy-side { border-color: #e63946; }
+.player-side { border-color: #2a9d8f; }
+
+.enemy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.enemy-item {
+    background: rgba(255,255,255,0.05);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.enemy-item:hover { border-color: #ffd700; background: rgba(255,215,0,0.1); }
+.enemy-item.target { border-color: #ff0000; background: rgba(255,0,0,0.2); }
+.enemy-item.defeated { opacity: 0.3; pointer-events: none; }
+
+.btn {
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #000;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 5px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,215,0,0.5); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-danger { background: linear-gradient(135deg, #e63946, #c1121f); color: white; }
+.btn-success { background: linear-gradient(135deg, #2a9d8f, #264653); color: white; }
+.btn-info { background: linear-gradient(135deg, #4361ee, #3a0ca3); color: white; }
+
+.mov-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 2px solid #555;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mov-btn:hover { border-color: #ffd700; background: rgba(255,215,0,0.1); }
+.mov-btn .mov-name { font-weight: bold; font-size: 1.1em; }
+.mov-btn .mov-info { font-size: 0.85em; opacity: 0.8; }
+
+#log {
+    background: rgba(0,0,0,0.7);
+    border: 2px solid #555;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+.log-entry { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.log-entry.damage { color: #ff6b6b; }
+.log-entry.heal { color: #51cf66; }
+.log-entry.info { color: #74c0fc; }
+.log-entry.critical { color: #ffd700; font-weight: bold; }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    font-size: 0.85em;
+    margin: 5px 0;
+}
+.stat-item { background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 5px; }
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+}
+.shop-item {
+    background: rgba(255,255,255,0.08);
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.shop-item:hover { border-color: #ffd700; transform: translateY(-3px); }
+.shop-item.cant-afford { opacity: 0.5; }
+
+.soles-display {
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #000;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+    display: inline-block;
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+.info-box {
+    background: rgba(0,0,0,0.5);
+    border-left: 4px solid #ffd700;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+}
+
+@media (max-width: 700px) {
+    .battle-field { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div id="game">
+    <div class="title-box">
+        <h1>⚡ POKÉMON: OLEADAS DE SINNOH ⚡</h1>
+        <p>Roguelite Táctico por Turnos</p>
+    </div>
+
+    <div id="screen-start" class="screen active">
+        <h2>🎮 Bienvenido Entrenador</h2>
+        <div class="info-box">
+            <p><strong>📜 Reglas del juego:</strong></p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Comienzas con <strong>10 Soles</strong> para armar tu equipo</li>
+                <li>Sobrevive <strong>30 oleadas</strong> de enemigos</li>
+                <li>Cada <strong>10 oleadas</strong> aparece un JEFE con 2 barras</li>
+                <li>Compra mejoras, reliquias y nuevos Pokémon en la tienda</li>
+                <li>¡Gestiona tu equipo de hasta 4 Pokémon!</li>
+            </ul>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="iniciarJuego()"> COMENZAR AVENTURA</button>
+        </div>
+    </div>
+
+    <div id="screen-draft" class="screen">
+        <h2>📋 Draft Inicial</h2>
+        <div class="soles-display"> Soles: <span id="draft-soles">10</span></div>
+        <p>Selecciona hasta 4 Pokémon para tu equipo (máximo 4)</p>
+        <div id="draft-options"></div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-success" onclick="confirmarDraft()">✓ Confirmar Equipo</button>
+        </div>
+    </div>
+
+    <div id="screen-battle" class="screen">
+        <h2>⚔️ Oleada <span id="wave-num">1</span></h2>
+        <div class="battle-field">
+            <div class="battle-side enemy-side">
+                <h3 style="color: #e63946;">👹 Enemigos</h3>
+                <div id="enemy-list" class="enemy-list"></div>
+            </div>
+            <div class="battle-side player-side">
+                <h3 style="color: #2a9d8f;">🛡️ Tu Equipo</h3>
+                <div id="player-team"></div>
+            </div>
+        </div>
+        <div id="action-panel">
+            <h3>🎯 Elige tu movimiento</h3>
+            <div id="mov-buttons"></div>
+            <p id="target-prompt" style="color: #ffd700; margin: 10px 0;"></p>
+        </div>
+        <div id="log"></div>
+    </div>
+
+    <div id="screen-reward" class="screen">
+        <h2> Recompensa</h2>
+        <div id="reward-content"></div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-success" onclick="irATienda()">🛒 Ir a la Tienda</button>
+        </div>
+    </div>
+
+    <div id="screen-shop" class="screen">
+        <h2> Tienda</h2>
+        <div class="soles-display">💰 Soles: <span id="shop-soles">0</span></div>
+        <div style="margin: 15px 0;">
+            <button class="btn" onclick="mostrarSeccionTienda('pokemon')">🐾 Pokémon</button>
+            <button class="btn btn-info" onclick="mostrarSeccionTienda('tutor')">📚 Tutor (3💰)</button>
+            <button class="btn btn-info" onclick="mostrarSeccionTienda('reliquias')">🏺 Reliquias</button>
+            <button class="btn btn-info" onclick="mostrarSeccionTienda('curar')">💊 Curar (2💰)</button>
+        </div>
+        <div id="shop-content"></div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-success" onclick="siguienteOleada()">➡️ Siguiente Oleada</button>
+        </div>
+    </div>
+
+    <div id="screen-gameover" class="screen">
+        <h2 style="color: #e63946; text-align: center;">💀 GAME OVER 💀</h2>
+        <div class="info-box">
+            <p style="font-size: 1.2em;">Has caído en la oleada <strong id="go-wave">1</strong></p>
+            <p>Soles finales: <span id="go-soles">0</span> 💰</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="location.reload()">🔄 Intentar de Nuevo</button>
+        </div>
+    </div>
+
+    <div id="screen-victory" class="screen">
+        <h2 style="color: #ffd700; text-align: center;"> ¡VICTORIA! 🏆</h2>
+        <div class="info-box">
+            <p style="font-size: 1.3em;">¡Has conquistado las 30 Oleadas de Sinnoh!</p>
+            <p>Eres el maestro definitivo.</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="location.reload()">🔄 Jugar de Nuevo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const SPRITES = {
+    "Charmander": "🦎", "Charmeleon": "", "Charizard": "🐉",
+    "Pidgey": "🐦", "Treecko": "🦎", "Chimchar": "🐵",
+    "Wartortle": "🐢", "Grovyle": "🦎", "Blaziken": "🐔",
+    "Lucario": "", "Dragonite": "🐲", "Tyranitar": "🦖",
+    "Garchomp": "🦈", "Pikachu": "⚡", "Raticate": "🐀",
+    "Tyranitar Alfa": "👹", "Heatran Supremo": "🔥", "Dialga Temporal": "💎",
+    "Garchomp Legendario": "🐲"
+};
+
+const TIPOS = ["Normal","Fuego","Agua","Planta","Electrico","Hielo","Lucha","Veneno","Tierra","Volador","Psiquico","Bicho","Roca","Fantasma","Dragon","Siniestro","Acero"];
+
+const EFECTIVIDAD = {
+    "Normal": {"Roca":0.5,"Acero":0.5,"Fantasma":0},
+    "Fuego": {"Fuego":0.5,"Agua":0.5,"Planta":2,"Hielo":2,"Bicho":2,"Roca":0.5,"Dragon":0.5,"Acero":2},
+    "Agua": {"Fuego":2,"Agua":0.5,"Planta":0.5,"Tierra":2,"Roca":2,"Dragon":0.5},
+    "Planta": {"Fuego":0.5,"Agua":2,"Planta":0.5,"Veneno":0.5,"Tierra":2,"Volador":0.5,"Bicho":0.5,"Roca":2,"Dragon":0.5,"Acero":0.5},
+    "Electrico": {"Agua":2,"Electrico":0.5,"Planta":0.5,"Tierra":0,"Volador":2,"Dragon":0.5},
+    "Hielo": {"Fuego":0.5,"Agua":0.5,"Planta":2,"Hielo":0.5,"Tierra":2,"Volador":2,"Dragon":2,"Acero":0.5},
+    "Lucha": {"Normal":2,"Hielo":2,"Roca":2,"Veneno":0.5,"Volador":0.5,"Psiquico":0.5,"Bicho":0.5,"Fantasma":0,"Acero":2,"Siniestro":2},
+    "Veneno": {"Planta":2,"Veneno":0.5,"Tierra":0.5,"Roca":0.5,"Fantasma":0.5,"Acero":0},
+    "Tierra": {"Fuego":2,"Electrico":2,"Planta":0.5,"Veneno":2,"Volador":0,"Bicho":0.5,"Roca":2,"Acero":2},
+    "Volador": {"Electrico":0.5,"Planta":2,"Lucha":2,"Bicho":2,"Roca":0.5,"Acero":0.5},
+    "Psiquico": {"Lucha":2,"Veneno":2,"Psiquico":0.5,"Acero":0.5,"Siniestro":0},
+    "Bicho": {"Fuego":0.5,"Planta":2,"Lucha":0.5,"Veneno":0.5,"Volador":0.5,"Psiquico":2,"Fantasma":0.5,"Acero":0.5,"Siniestro":2},
+    "Roca": {"Fuego":2,"Hielo":2,"Lucha":0.5,"Tierra":0.5,"Volador":2,"Bicho":2,"Acero":0.5},
+    "Fantasma": {"Normal":0,"Psiquico":2,"Fantasma":2,"Siniestro":0.5},
+    "Dragon": {"Dragon":2,"Acero":0.5},
+    "Siniestro": {"Lucha":0.5,"Psiquico":2,"Fantasma":2,"Siniestro":0.5},
+    "Acero": {"Fuego":0.5,"Agua":0.5,"Electrico":0.5,"Hielo":2,"Roca":2,"Acero":0.5}
+};
+
+const MOVIMIENTOS = {
+    "Lanzallamas": {tipo:"Fuego", cat:"Especial", pot:90, pp:15},
+    "Llamarada": {tipo:"Fuego", cat:"Especial", pot:110, pp:5},
+    "Rueda Fuego": {tipo:"Fuego", cat:"Fisico", pot:60, pp:25},
+    "Surf": {tipo:"Agua", cat:"Especial", pot:90, pp:15},
+    "Hidrobomba": {tipo:"Agua", cat:"Especial", pot:110, pp:5},
+    "Energibola": {tipo:"Planta", cat:"Especial", pot:90, pp:10},
+    "Rayo Solar": {tipo:"Planta", cat:"Especial", pot:120, pp:10},
+    "Hoja Afilada": {tipo:"Planta", cat:"Fisico", pot:55, pp:25},
+    "Latigazo Cepa": {tipo:"Planta", cat:"Fisico", pot:45, pp:25},
+    "Rayo": {tipo:"Electrico", cat:"Especial", pot:90, pp:15},
+    "Trueno": {tipo:"Electrico", cat:"Especial", pot:110, pp:10},
+    "Rayo Hielo": {tipo:"Hielo", cat:"Especial", pot:90, pp:10},
+    "Ventisca": {tipo:"Hielo", cat:"Especial", pot:110, pp:5},
+    "A bocajarro": {tipo:"Lucha", cat:"Fisico", pot:120, pp:5},
+    "Golpe Karate": {tipo:"Lucha", cat:"Fisico", pot:50, pp:25},
+    "Terremoto": {tipo:"Tierra", cat:"Fisico", pot:100, pp:10},
+    "Psiquico": {tipo:"Psiquico", cat:"Especial", pot:90, pp:10},
+    "Bola Sombra": {tipo:"Fantasma", cat:"Especial", pot:80, pp:15},
+    "Furia Dragon": {tipo:"Dragon", cat:"Fisico", pot:80, pp:10},
+    "Triturar": {tipo:"Siniestro", cat:"Fisico", pot:80, pp:15},
+    "Cola Ferrea": {tipo:"Acero", cat:"Fisico", pot:100, pp:15},
+    "Garra Metal": {tipo:"Acero", cat:"Fisico", pot:50, pp:35},
+    "Placaje": {tipo:"Normal", cat:"Fisico", pot:50, pp:35},
+    "Velocidad Extrema": {tipo:"Normal", cat:"Fisico", pot:80, pp:5},
+    "Vuelo": {tipo:"Volador", cat:"Fisico", pot:90, pp:15},
+    "Aire Afilado": {tipo:"Volador", cat:"Especial", pot:55, pp:25},
+    "Avalancha": {tipo:"Roca", cat:"Fisico", pot:75, pp:10},
+    "Roca Afilada": {tipo:"Roca", cat:"Fisico", pot:100, pp:5},
+    "Bomba Lodo": {tipo:"Veneno", cat:"Especial", pot:90, pp:10}
+};
+
+const POOL_POKEMON = {
+    "Basico": [
+        {nombre:"Charmander", tipos:["Fuego"], stats:{hp:130,atk:52,def:43,atkE:60,defE:50,spd:65}, movs:["Rueda Fuego","Placaje","Garra Metal","Avalancha"]},
+        {nombre:"Pidgey", tipos:["Normal","Volador"], stats:{hp:120,atk:45,def:40,atkE:35,defE:35,spd:56}, movs:["Aire Afilado","Placaje","Vuelo","Velocidad Extrema"]},
+        {nombre:"Treecko", tipos:["Planta"], stats:{hp:120,atk:45,def:35,atkE:65,defE:40,spd:70}, movs:["Latigazo Cepa","Placaje","Hoja Afilada","Velocidad Extrema"]},
+        {nombre:"Chimchar", tipos:["Fuego"], stats:{hp:124,atk:58,def:44,atkE:58,defE:44,spd:61}, movs:["Rueda Fuego","Placaje","Triturar","Velocidad Extrema"]},
+        {nombre:"Pikachu", tipos:["Electrico"], stats:{hp:110,atk:55,def:40,atkE:50,defE:50,spd:90}, movs:["Rayo","Placaje","Velocidad Extrema","Cola Ferrea"]}
+    ],
+    "Fase2": [
+        {nombre:"Wartortle", tipos:["Agua"], stats:{hp:179,atk:65,def:80,atkE:65,defE:80,spd:58}, movs:["Surf","Placaje","Rayo Hielo","Roca Afilada"]},
+        {nombre:"Grovyle", tipos:["Planta"], stats:{hp:200,atk:65,def:45,atkE:85,defE:65,spd:95}, movs:["Energibola","Placaje","Hoja Afilada","Velocidad Extrema"]},
+        {nombre:"Charmeleon", tipos:["Fuego"], stats:{hp:186,atk:64,def:58,atkE:80,defE:65,spd:80}, movs:["Lanzallamas","Placaje","Garra Metal","Roca Afilada"]}
+    ],
+    "Final": [
+        {nombre:"Charizard", tipos:["Fuego","Volador"], stats:{hp:266,atk:84,def:78,atkE:109,defE:85,spd:100}, movs:["Lanzallamas","Vuelo","Roca Afilada","Garra Metal"]},
+        {nombre:"Blaziken", tipos:["Fuego","Lucha"], stats:{hp:280,atk:120,def:70,atkE:110,defE:70,spd:80}, movs:["Llamarada","A bocajarro","Roca Afilada","Velocidad Extrema"]},
+        {nombre:"Lucario", tipos:["Lucha","Acero"], stats:{hp:210,atk:115,def:70,atkE:115,defE:70,spd:90}, movs:["A bocajarro","Cola Ferrea","Roca Afilada","Psiquico"]}
+    ],
+    "Pseudo": [
+        {nombre:"Dragonite", tipos:["Dragon","Volador"], stats:{hp:364,atk:134,def:95,atkE:100,defE:100,spd:80}, movs:["Furia Dragon","Vuelo","Lanzallamas","Terremoto"]},
+        {nombre:"Tyranitar", tipos:["Roca","Siniestro"], stats:{hp:394,atk:134,def:110,atkE:95,defE:100,spd:61}, movs:["Avalancha","Triturar","Terremoto","Lanzallamas"]},
+        {nombre:"Garchomp", tipos:["Dragon","Tierra"], stats:{hp:357,atk:130,def:95,atkE:80,defE:85,spd:102}, movs:["Furia Dragon","Terremoto","Roca Afilada","Lanzallamas"]}
+    ]
+};
+
+const PRECIOS = {"Basico":1, "Fase2":2, "Final":3, "Pseudo":4, "Legendario":5};
+
+const RELIQUIAS = {
+    "Cinta Brasa": {coste:5, desc:"Tipo Fuego: +10% Ataque Especial", tipo:"Fuego", stat:"atkE", mult:1.1},
+    "Restos Eternos": {coste:8, desc:"Todos regeneran 5% HP por turno", efecto:"regen"},
+    "Garra Ágida": {coste:4, desc:"Líder del equipo: +20% Velocidad", efecto:"spd"},
+    "Escama Dragón": {coste:6, desc:"Tipo Dragón: +15% Daño", tipo:"Dragon", mult:1.15}
+};
+
+let game = {
+    soles: 10,
+    oleada: 1,
+    equipo: [],
+    reliquias: [],
+    enemigos: [],
+    jefe: null,
+    turnoActual: 0,
+    seleccionandoObjetivo: null,
+    seleccionandoMov: null,
+    log: []
+};
+
+function calcularEfectividad(tipoAtaque, tiposDefensor) {
+    let mult = 1;
+    for (let tipo of tiposDefensor) {
+        if (EFECTIVIDAD[tipoAtaque] && EFECTIVIDAD[tipoAtaque][tipo] !== undefined) {
+            mult *= EFECTIVIDAD[tipoAtaque][tipo];
+        }
+    }
+    return mult;
+}
+
+function crearPokemon(data, escalarNivel = 50) {
+    const factor = 1 + ((escalarNivel - 5) * 0.02);
+    const stats = {
+        hp: Math.floor(data.stats.hp * factor),
+        atk: Math.floor(data.stats.atk * factor),
+        def: Math.floor(data.stats.def * factor),
+        atkE: Math.floor(data.stats.atkE * factor),
+        defE: Math.floor(data.stats.defE * factor),
+        spd: Math.floor(data.stats.spd * factor)
+    };
+    const movs = data.movs.map(n => ({
+        nombre: n,
+        ...MOVIMIENTOS[n],
+        ppActual: MOVIMIENTOS[n].pp,
+        ppMax: MOVIMIENTOS[n].pp
+    }));
+    return {
+        nombre: data.nombre,
+        tipos: [...data.tipos],
+        stats: stats,
+        hpActual: stats.hp,
+        hpMax: stats.hp,
+        movimientos: movs,
+        tier: data.tier || null,
+        esJefe: data.esJefe || false,
+        hpEscudo: data.hpEscudo || 0,
+        hpEscudoMax: data.hpEscudoMax || 0,
+        hpVida: data.hpVida || 0,
+        hpVidaMax: data.hpVidaMax || 0,
+        fase: data.fase || 1,
+        enfurecido: false,
+        movExclusivo: data.movExclusivo || null,
+        turnoFase2: 0
+    };
+}
+
+function mostrarPantalla(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+}
+
+function addLog(texto, tipo = 'info') {
+    const log = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + tipo;
+    entry.innerHTML = texto;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('log').innerHTML = '';
+}
+
+function tipoBadge(tipo) {
+    return `<span class="tipo tipo-${tipo}">${tipo}</span>`;
+}
+
+function hpBarClass(actual, max) {
+    const pct = (actual / max) * 100;
+    if (pct > 50) return '';
+    if (pct > 25) return 'medium';
+    return 'low';
+}
+
+function iniciarJuego() {
+    game = {soles:10, oleada:1, equipo:[], reliquias:[], enemigos:[], jefe:null, turnoActual:0, seleccionandoObjetivo:null, seleccionandoMov:null, log:[]};
+    mostrarDraft();
+}
+
+function mostrarDraft() {
+    mostrarPantalla('draft');
+    document.getElementById('draft-soles').textContent = game.soles;
+    const cont = document.getElementById('draft-options');
+    cont.innerHTML = '';
+    
+    const opciones = [];
+    ['Basico','Fase2','Final','Pseudo'].forEach(tier => {
+        const pool = POOL_POKEMON[tier];
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        opciones.push({...pick, tier: tier});
+    });
+    
+    opciones.forEach((op, idx) => {
+        const coste = PRECIOS[op.tier];
+        const card = document.createElement('div');
+        card.className = 'pokemon-card';
+        card.dataset.idx = idx;
+        card.dataset.coste = coste;
+        card.dataset.tier = op.tier;
+        card.innerHTML = `
+            <div class="sprite">${SPRITES[op.nombre] || '🐾'}</div>
+            <div style="flex:1;">
+                <h3>${op.nombre} <small style="opacity:0.7;">(${op.tier})</small></h3>
+                <div>${op.tipos.map(t => tipoBadge(t)).join('')}</div>
+                <div class="stats-grid">
+                    <div class="stat-item">❤️ ${op.stats.hp}</div>
+                    <div class="stat-item">⚔️ ${op.stats.atk}</div>
+                    <div class="stat-item">🛡️ ${op.stats.def}</div>
+                    <div class="stat-item">✨ ${op.stats.atkE}</div>
+                    <div class="stat-item">🔰 ${op.stats.defE}</div>
+                    <div class="stat-item">💨 ${op.stats.spd}</div>
+                </div>
+                <div style="margin-top:5px;"><strong>Coste:</strong> ${coste} 💰</div>
+            </div>
+        `;
+        card.onclick = () => seleccionarDraft(idx, op, coste, card);
+        cont.appendChild(card);
+    });
+}
+
+function seleccionarDraft(idx, op, coste, card) {
+    if (game.soles < coste) {
+        alert('¡No tienes suficientes Soles!');
+        return;
+    }
+    if (game.equipo.length >= 4) {
+        alert('¡Equipo lleno! Máximo 4 Pokémon.');
+        return;
+    }
+    
+    const nuevo = crearPokemon(op);
+    nuevo.tier = op.tier;
+    game.equipo.push(nuevo);
+    game.soles -= coste;
+    
+    card.classList.add('selected');
+    card.classList.add('disabled');
+    card.onclick = null;
+    
+    document.getElementById('draft-soles').textContent = game.soles;
+}
+
+function confirmarDraft() {
+    if (game.equipo.length === 0) {
+        alert('¡Debes seleccionar al menos un Pokémon!');
+        return;
+    }
+    iniciarOleada();
+}
+
+function iniciarOleada() {
+    mostrarPantalla('battle');
+    document.getElementById('wave-num').textContent = game.oleada;
+    clearLog();
+    
+    if (game.oleada % 10 === 0) {
+        generarJefe();
+    } else {
+        generarEnemigos();
+    }
+    
+    aplicarReliquiasInicio();
+    game.turnoActual = 1;
+    addLog(`¡Comienza la oleada ${game.oleada}!`, 'critical');
+    renderizarCombate();
+    esperarTurnoJugador();
+}
+
+function generarEnemigos() {
+    const nivel = 5 + (game.oleada * 2);
+    let cantidad;
+    if (game.oleada <= 3) cantidad = 1 + Math.floor(Math.random() * 2);
+    else if (game.oleada <= 10) cantidad = 2 + Math.floor(Math.random() * 2);
+    else cantidad = 3 + Math.floor(Math.random() * 2);
+    
+    game.enemigos = [];
+    const esPico = (game.oleada % 5 === 0) && (game.oleada % 10 !== 0);
+    
+    for (let i = 0; i < cantidad; i++) {
+        const tier = seleccionarTier(game.oleada, esPico);
+        const pool = POOL_POKEMON[tier];
+        const base = pool[Math.floor(Math.random() * pool.length)];
+        const enem = crearPokemon(base, nivel);
+        enem.tier = tier;
+        
+        const afijo = seleccionarAfijo(game.oleada, esPico);
+        aplicarAfijo(enem, afijo);
+        enem.afijo = afijo;
+        
+        game.enemigos.push(enem);
+    }
+}
+
+function seleccionarTier(oleada, esPico) {
+    let roll = Math.floor(Math.random() * 100);
+    if (esPico) roll -= 20;
+    
+    if (oleada < 5) {
+        if (roll < 70) return 'Basico';
+        if (roll < 95) return 'Fase2';
+        return 'Final';
+    } else if (oleada < 15) {
+        if (roll < 40) return 'Basico';
+        if (roll < 75) return 'Fase2';
+        if (roll < 95) return 'Final';
+        return 'Pseudo';
+    } else {
+        if (roll < 20) return 'Fase2';
+        if (roll < 55) return 'Final';
+        return 'Pseudo';
+    }
+}
+
+function seleccionarAfijo(oleada, esPico) {
+    if (oleada < 3) return 'Ninguno';
+    let roll = Math.floor(Math.random() * 100);
+    if (esPico) roll -= 30;
+    if (roll < 50) return 'Ninguno';
+    if (roll < 65) return 'Furioso';
+    if (roll < 80) return 'Blindado';
+    if (roll < 90) return 'Veloz';
+    return 'Reflejante';
+}
+
+function aplicarAfijo(enem, afijo) {
+    if (afijo === 'Furioso') {
+        enem.stats.atk = Math.floor(enem.stats.atk * 1.3);
+        enem.stats.def = Math.floor(enem.stats.def * 0.8);
+    } else if (afijo === 'Blindado') {
+        enem.stats.def = Math.floor(enem.stats.def * 1.5);
+        enem.stats.spd = Math.floor(enem.stats.spd * 0.8);
+    } else if (afijo === 'Veloz') {
+        enem.stats.spd = Math.floor(enem.stats.spd * 1.4);
+    }
+}
+
+function generarJefe() {
+    let data;
+    if (game.oleada === 10) {
+        data = {
+            nombre: "Tyranitar Alfa", tipos: ["Roca","Siniestro"],
+            stats: {hp:500,atk:180,def:150,atkE:120,defE:120,spd:80},
+            movs: ["Avalancha","Triturar","Terremoto","Lanzallamas"],
+            hpEscudo: 500, hpVida: 1000,
+            movExclusivo: {nombre:"Triturar Alma", tipo:"Siniestro", cat:"Fisico", pot:120, pp:10, ppMax:10, ppActual:10},
+            esJefe: true, fase: 1
+        };
+    } else if (game.oleada === 20) {
+        data = {
+            nombre: "Heatran Supremo", tipos: ["Fuego","Acero"],
+            stats: {hp:550,atk:200,def:180,atkE:150,defE:160,spd:90},
+            movs: ["Lanzallamas","Cola Ferrea","Terremoto","Roca Afilada"],
+            hpEscudo: 600, hpVida: 1200,
+            movExclusivo: {nombre:"Lluvia Ígnea", tipo:"Fuego", cat:"Especial", pot:140, pp:5, ppMax:5, ppActual:5},
+            esJefe: true, fase: 1
+        };
+    } else if (game.oleada === 30) {
+        data = {
+            nombre: "Dialga Temporal", tipos: ["Acero","Dragon"],
+            stats: {hp:600,atk:220,def:200,atkE:180,defE:180,spd:100},
+            movs: ["Furia Dragon","Cola Ferrea","Roca Afilada","Psiquico"],
+            hpEscudo: 700, hpVida: 1400,
+            movExclusivo: {nombre:"Distorsión Temporal", tipo:"Dragon", cat:"Especial", pot:150, pp:5, ppMax:5, ppActual:5},
+            esJefe: true, fase: 1
+        };
+    } else {
+        data = {
+            nombre: "Garchomp Legendario", tipos: ["Dragon","Tierra"],
+            stats: {hp:450,atk:160,def:130,atkE:110,defE:110,spd:120},
+            movs: ["Furia Dragon","Terremoto","Roca Afilada","Lanzallamas"],
+            hpEscudo: 500 + game.oleada * 10, hpVida: 1000 + game.oleada * 20,
+            movExclusivo: {nombre:"Golpe Dragón", tipo:"Dragon", cat:"Fisico", pot:130, pp:5, ppMax:5, ppActual:5},
+            esJefe: true, fase: 1
+        };
+    }
+    
+    const jefe = crearPokemon(data);
+    jefe.hpEscudoMax = data.hpEscudo;
+    jefe.hpEscudo = data.hpEscudo;
+    jefe.hpVidaMax = data.hpVida;
+    jefe.hpVida = data.hpVida;
+    jefe.movExclusivo = data.movExclusivo;
+    jefe.esJefe = true;
+    game.jefe = jefe;
+}
+
+function aplicarReliquiasInicio() {
+    for (let r of game.reliquias) {
+        const data = RELIQUIAS[r];
+        for (let p of game.equipo) {
+            if (data.stat && data.tipo && p.tipos.includes(data.tipo)) {
+                p.stats[data.stat] = Math.floor(p.stats[data.stat] * data.mult);
+            }
+        }
+    }
+}
+
+function renderizarCombate() {
+    const enemyList = document.getElementById('enemy-list');
+    enemyList.innerHTML = '';
+    
+    if (game.jefe) {
+        const j = game.jefe;
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <div style="text-align:center;">
+                <div class="sprite boss">${SPRITES[j.nombre] || '👹'}</div>
+                <h3 style="color:#e63946;">${j.nombre}</h3>
+                <div>${j.tipos.map(t => tipoBadge(t)).join('')}</div>
+                ${j.fase === 1 ? `
+                    <div style="margin-top:10px;">
+                        <div style="color:#00BCD4;">🛡️ ESCUDO</div>
+                        <div class="hp-bar-container">
+                            <div class="hp-bar shield-bar" style="width:${(j.hpEscudo/j.hpEscudoMax)*100}%"></div>
+                            <div class="hp-bar-text">${j.hpEscudo}/${j.hpEscudoMax}</div>
+                        </div>
+                    </div>
+                ` : `
+                    <div style="margin-top:10px;">
+                        <div style="color:#e63946;">💀 VIDA REAL ${j.enfurecido ? '(ENFURECIDO)' : ''}</div>
+                        <div class="hp-bar-container">
+                            <div class="hp-bar low" style="width:${(j.hpVida/j.hpVidaMax)*100}%"></div>
+                            <div class="hp-bar-text">${j.hpVida}/${j.hpVidaMax}</div>
+                        </div>
+                    </div>
+                `}
+            </div>
+        `;
+        enemyList.appendChild(div);
+    } else {
+        game.enemigos.forEach((e, idx) => {
+            const div = document.createElement('div');
+            div.className = 'enemy-item' + (e.hpActual <= 0 ? ' defeated' : '');
+            div.dataset.idx = idx;
+            const afijoTxt = e.afijo && e.afijo !== 'Ninguno' ? `<span style="color:#ff6b6b;">[${e.afijo}]</span>` : '';
+            div.innerHTML = `
+                <div class="sprite">${SPRITES[e.nombre] || '🐾'}</div>
+                <div style="flex:1;">
+                    <strong>${e.nombre}</strong> ${afijoTxt}
+                    <div>${e.tipos.map(t => tipoBadge(t)).join('')}</div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar ${hpBarClass(e.hpActual, e.hpMax)}" style="width:${(e.hpActual/e.hpMax)*100}%"></div>
+                        <div class="hp-bar-text">${e.hpActual}/${e.hpMax}</div>
+                    </div>
+                </div>
+            `;
+            if (e.hpActual > 0) {
+                div.onclick = () => seleccionarObjetivo(idx);
+            }
+            enemyList.appendChild(div);
+        });
+    }
+    
+    const playerTeam = document.getElementById('player-team');
+    playerTeam.innerHTML = '';
+    game.equipo.forEach((p, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'background:rgba(255,255,255,0.05); padding:10px; margin:5px 0; border-radius:8px; border:2px solid ' + (p.hpActual <= 0 ? '#555' : '#2a9d8f');
+        div.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="sprite">${SPRITES[p.nombre] || '🐾'}</div>
+                <div style="flex:1;">
+                    <strong>${p.nombre}</strong> ${p.hpActual <= 0 ? '<span style="color:#e63946;">[KO]</span>' : ''}
+                    <div>${p.tipos.map(t => tipoBadge(t)).join('')}</div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar ${hpBarClass(p.hpActual, p.hpMax)}" style="width:${(p.hpActual/p.hpMax)*100}%"></div>
+                        <div class="hp-bar-text">${p.hpActual}/${p.hpMax}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        playerTeam.appendChild(div);
+    });
+}
+
+function esperarTurnoJugador() {
+    const pokemonActivo = game.equipo.find(p => p.hpActual > 0);
+    if (!pokemonActivo) {
+        gameOver();
+        return;
+    }
+    
+    const movBtns = document.getElementById('mov-buttons');
+    movBtns.innerHTML = '';
+    document.getElementById('target-prompt').textContent = '';
+    
+    game.equipo.filter(p => p.hpActual > 0).forEach((p, idxReal) => {
+        const idx = game.equipo.indexOf(p);
+        const container = document.createElement('div');
+        container.style.cssText = 'margin-bottom:15px; padding:10px; background:rgba(42,157,143,0.1); border-radius:8px; border-left:4px solid #2a9d8f;';
+        container.innerHTML = `<strong>🎯 ${p.nombre}</strong>`;
+        
+        p.movimientos.forEach((m, mIdx) => {
+            const btn = document.createElement('button');
+            btn.className = 'mov-btn';
+            btn.innerHTML = `
+                <div class="mov-name">${tipoBadge(m.tipo)} ${m.nombre}</div>
+                <div class="mov-info">Pot:${m.pot} | ${m.cat} | PP:${m.ppActual}/${m.ppMax}</div>
+            `;
+            btn.disabled = m.ppActual <= 0;
+            btn.onclick = () => seleccionarMovimiento(idx, mIdx);
+            container.appendChild(btn);
+        });
+        
+        movBtns.appendChild(container);
+    });
+}
+
+function seleccionarMovimiento(pokemonIdx, movIdx) {
+    game.seleccionandoMov = {pokemonIdx, movIdx};
+    
+    if (game.jefe) {
+        ejecutarAtaqueJefe(pokemonIdx, movIdx);
+    } else {
+        document.getElementById('target-prompt').textContent = '👆 Selecciona un objetivo enemigo';
+        document.querySelectorAll('.enemy-item').forEach(item => {
+            if (!item.classList.contains('defeated')) {
+                item.style.cursor = 'pointer';
+                item.style.borderColor = '#ffd700';
+            }
+        });
+    }
+}
+
+function seleccionarObjetivo(idx) {
+    if (!game.seleccionandoMov) return;
+    const {pokemonIdx, movIdx} = game.seleccionandoMov;
+    ejecutarAtaque(pokemonIdx, movIdx, idx);
+    game.seleccionandoMov = null;
+}
+
+function ejecutarAtaque(pokemonIdx, movIdx, targetIdx) {
+    const p = game.equipo[pokemonIdx];
+    const mov = p.movimientos[movIdx];
+    const target = game.enemigos[targetIdx];
+    
+    mov.ppActual--;
+    
+    const efect = calcularEfectividad(mov.tipo, target.tipos);
+    if (efect === 0) {
+        addLog(`${p.nombre} usa ${mov.nombre}... ¡No afecta a ${target.nombre}!`, 'info');
+        terminarTurnoJugador();
+        return;
+    }
+    
+    let dano;
+    if (mov.cat === 'Fisico') {
+        dano = mov.pot + (p.stats.atk - target.stats.def);
+    } else {
+        dano = mov.pot + (p.stats.atkE - target.stats.defE);
+    }
+    dano = Math.max(1, Math.floor(dano * efect));
+    
+    const escama = game.reliquias.find(r => r === 'Escama Dragón');
+    if (escama && p.tipos.includes('Dragon')) {
+        dano = Math.floor(dano * 1.15);
+    }
+    
+    target.hpActual = Math.max(0, target.hpActual - dano);
+    
+    let efectTxt = '';
+    if (efect > 1) efectTxt = ' <span style="color:#51cf66;">¡SUPER EFECTIVO!</span>';
+    else if (efect < 1) efectTxt = ' <span style="color:#ff6b6b;">(Poco efectivo)</span>';
+    
+    addLog(`${tipoBadge(mov.tipo)} <strong>${p.nombre}</strong> usa <strong>${mov.nombre}</strong> contra ${target.nombre} → <strong>${dano}</strong> daño${efectTxt}`, 'damage');
+    
+    if (target.hpActual <= 0) {
+        addLog(`💀 ¡${target.nombre} ha sido derrotado!`, 'critical');
+    }
+    
+    renderizarCombate();
+    terminarTurnoJugador();
+}
+
+function ejecutarAtaqueJefe(pokemonIdx, movIdx) {
+    const p = game.equipo[pokemonIdx];
+    const mov = p.movimientos[movIdx];
+    const j = game.jefe;
+    
+    mov.ppActual--;
+    
+    const efect = calcularEfectividad(mov.tipo, j.tipos);
+    
+    let dano;
+    if (mov.cat === 'Fisico') {
+        dano = mov.pot + (p.stats.atk - j.stats.def);
+    } else {
+        dano = mov.pot + (p.stats.atkE - j.stats.defE);
+    }
+    dano = Math.max(1, Math.floor(dano * efect));
+    
+    const escama = game.reliquias.find(r => r === 'Escama Dragón');
+    if (escama && p.tipos.includes('Dragon')) {
+        dano = Math.floor(dano * 1.15);
+    }
+    
+    if (j.fase === 1) {
+        const danoEscudo = efect > 1 ? dano * 2 : dano;
+        j.hpEscudo = Math.max(0, j.hpEscudo - danoEscudo);
+        addLog(`${tipoBadge(mov.tipo)} <strong>${p.nombre}</strong> usa <strong>${mov.nombre}</strong> → <strong>${danoEscudo}</strong> daño al ESCUDO`, 'damage');
+        
+        if (j.hpEscudo <= 0) {
+            j.fase = 2;
+            j.enfurecido = true;
+            j.stats.atk += 50;
+            j.stats.atkE += 50;
+            j.stats.spd += 30;
+            addLog(` ¡${j.nombre} DESTRUYÓ SU ARMADURA Y ENTRA EN MODO ENFURECIDO! (+ATK, +SPD)`, 'critical');
+        }
+    } else {
+        j.hpVida = Math.max(0, j.hpVida - dano);
+        addLog(`${tipoBadge(mov.tipo)} <strong>${p.nombre}</strong> usa <strong>${mov.nombre}</strong> → <strong>${dano}</strong> daño a VIDA REAL`, 'damage');
+    }
+    
+    renderizarCombate();
+    terminarTurnoJugador();
+}
+
+function terminarTurnoJugador() {
+    if (game.jefe) {
+        if (game.jefe.fase === 2 && game.jefe.hpVida <= 0) {
+            victoriaOleada();
+            return;
+        }
+    } else {
+        if (game.enemigos.every(e => e.hpActual <= 0)) {
+            victoriaOleada();
+            return;
+        }
+    }
+    
+    setTimeout(() => turnoEnemigo(), 800);
+}
+
+function turnoEnemigo() {
+    if (game.reliquias.includes('Restos Eternos')) {
+        game.equipo.forEach(p => {
+            if (p.hpActual > 0) {
+                const cur = Math.floor(p.hpMax * 0.05);
+                p.hpActual = Math.min(p.hpMax, p.hpActual + cur);
+                addLog(`💚 ${p.nombre} regenera ${cur} HP (Restos)`, 'heal');
+            }
+        });
+    }
+    
+    if (game.jefe) {
+        ataqueJefe();
+    } else {
+        game.enemigos.filter(e => e.hpActual > 0).forEach(e => {
+            const objetivo = game.equipo.find(p => p.hpActual > 0);
+            if (objetivo) ataqueEnemigo(e, objetivo);
+        });
+    }
+    
+    renderizarCombate();
+    
+    if (game.equipo.every(p => p.hpActual <= 0)) {
+        setTimeout(gameOver, 1000);
+        return;
+    }
+    
+    game.turnoActual++;
+    setTimeout(esperarTurnoJugador, 800);
+}
+
+function ataqueEnemigo(enem, objetivo) {
+    const movsDisponibles = enem.movimientos.filter(m => m.ppActual > 0);
+    if (movsDisponibles.length === 0) return;
+    const mov = movsDisponibles[Math.floor(Math.random() * movsDisponibles.length)];
+    mov.ppActual--;
+    
+    const efect = calcularEfectividad(mov.tipo, objetivo.tipos);
+    if (efect === 0) return;
+    
+    let dano;
+    if (mov.cat === 'Fisico') {
+        dano = mov.pot + (enem.stats.atk - objetivo.stats.def);
+    } else {
+        dano = mov.pot + (enem.stats.atkE - objetivo.stats.defE);
+    }
+    dano = Math.max(1, Math.floor(dano * efect));
+    
+    objetivo.hpActual = Math.max(0, objetivo.hpActual - dano);
+    
+    addLog(`👹 <strong>${enem.nombre}</strong> usa <strong>${mov.nombre}</strong> contra ${objetivo.nombre} → <strong>${dano}</strong> daño`, 'damage');
+    
+    if (objetivo.hpActual <= 0) {
+        addLog(`💀 ¡${objetivo.nombre} ha caído!`, 'critical');
+    }
+}
+
+function ataqueJefe() {
+    const j = game.jefe;
+    const objetivo = game.equipo.find(p => p.hpActual > 0);
+    if (!objetivo) return;
+    
+    let mov;
+    if (j.enfurecido) {
+        j.turnoFase2++;
+        if (j.turnoFase2 % 3 === 0) {
+            mov = j.movExclusivo;
+        }
+    }
+    if (!mov) {
+        const disponibles = j.movimientos.filter(m => m.ppActual > 0);
+        mov = disponibles.length > 0 ? disponibles[Math.floor(Math.random() * disponibles.length)] : j.movimientos[0];
+        mov.ppActual--;
+    }
+    
+    const efect = calcularEfectividad(mov.tipo, objetivo.tipos);
+    if (efect === 0) return;
+    
+    let dano;
+    if (mov.cat === 'Fisico') {
+        dano = mov.pot + (j.stats.atk - objetivo.stats.def);
+    } else {
+        dano = mov.pot + (j.stats.atkE - objetivo.stats.defE);
+    }
+    dano = Math.max(1, Math.floor(dano * efect));
+    
+    objetivo.hpActual = Math.max(0, objetivo.hpActual - dano);
+    
+    addLog(`🔥 <strong>${j.nombre}</strong> usa <strong>${mov.nombre}</strong> contra ${objetivo.nombre} → <strong>${dano}</strong> daño`, 'damage');
+    
+    if (objetivo.hpActual <= 0) {
+        addLog(`💀 ¡${objetivo.nombre} ha caído ante el jefe!`, 'critical');
+    }
+}
+
+function victoriaOleada() {
+    setTimeout(() => {
+        mostrarPantalla('reward');
+        const recompensa = game.oleada * 2 + 5;
+        const bonusJefe = game.jefe ? 10 : 0;
+        const total = recompensa + bonusJefe;
+        game.soles += total;
+        
+        game.equipo.forEach(p => {
+            if (p.hpActual > 0) {
+                const cur = Math.floor(p.hpMax * 0.3);
+                p.hpActual = Math.min(p.hpMax, p.hpActual + cur);
+            }
+        });
+        
+        const cont = document.getElementById('reward-content');
+        cont.innerHTML = `
+            <div class="info-box">
+                <h3 style="color:#ffd700;">¡Oleada ${game.oleada} superada!</h3>
+                <p>💰 +${recompensa} Soles ${bonusJefe > 0 ? `+ ${bonusJefe} bonus jefe` : ''}</p>
+                <p>💚 Equipo curado un 30%</p>
+                <p><strong>Total Soles: ${game.soles} 💰</strong></p>
+            </div>
+        `;
+    }, 1000);
+}
+
+function irATienda() {
+    mostrarPantalla('shop');
+    document.getElementById('shop-soles').textContent = game.soles;
+    mostrarSeccionTienda('pokemon');
+}
+
+function mostrarSeccionTienda(seccion) {
+    const cont = document.getElementById('shop-content');
+    cont.innerHTML = '';
+    
+    if (seccion === 'pokemon') {
+        cont.innerHTML = '<h3> Pokémon Disponibles</h3>';
+        const grid = document.createElement('div');
+        grid.className = 'shop-grid';
+        
+        const opciones = [];
+        ['Basico','Fase2','Final','Pseudo'].forEach(tier => {
+            const pool = POOL_POKEMON[tier];
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            opciones.push({...pick, tier});
+        });
+        
+        opciones.forEach(op => {
+            const coste = PRECIOS[op.tier];
+            const puede = game.soles >= coste && game.equipo.length < 4;
+            const item = document.createElement('div');
+            item.className = 'shop-item' + (!puede ? ' cant-afford' : '');
+            item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="sprite">${SPRITES[op.nombre] || '🐾'}</div>
+                    <div style="flex:1;">
+                        <strong>${op.nombre}</strong> (${op.tier})
+                        <div>${op.tipos.map(t => tipoBadge(t)).join('')}</div>
+                        <div style="margin-top:5px;"><strong>${coste} 💰</strong></div>
+                    </div>
+                </div>
+            `;
+            if (puede) {
+                item.onclick = () => comprarPokemon(op, coste);
+            }
+            grid.appendChild(item);
+        });
+        
+        cont.appendChild(grid);
+        
+    } else if (seccion === 'tutor') {
+        cont.innerHTML = '<h3>📚 Tutor de Movimientos (3 💰)</h3>';
+        if (game.soles < 3) {
+            cont.innerHTML += '<p style="color:#ff6b6b;">No tienes suficientes Soles</p>';
+            return;
+        }
+        
+        game.equipo.forEach((p, idx) => {
+            if (p.hpActual <= 0) return;
+            const div = document.createElement('div');
+            div.style.cssText = 'background:rgba(255,255,255,0.05); padding:10px; margin:10px 0; border-radius:8px;';
+            div.innerHTML = `<strong>${p.nombre}</strong>`;
+            
+            p.movimientos.forEach((m, mIdx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.style.fontSize = '0.85em';
+                btn.innerHTML = `Reemplazar: ${m.nombre} →`;
+                btn.onclick = () => abrirTutor(idx, mIdx);
+                div.appendChild(btn);
+            });
+            
+            cont.appendChild(div);
+        });
+        
+    } else if (seccion === 'reliquias') {
+        cont.innerHTML = '<h3>🏺 Reliquias</h3>';
+        const grid = document.createElement('div');
+        grid.className = 'shop-grid';
+        
+        Object.keys(RELIQUIAS).forEach(nombre => {
+            const r = RELIQUIAS[nombre];
+            const puede = game.soles >= r.coste;
+            const item = document.createElement('div');
+            item.className = 'shop-item' + (!puede ? ' cant-afford' : '');
+            item.innerHTML = `
+                <h4>${nombre}</h4>
+                <p style="font-size:0.9em; opacity:0.8;">${r.desc}</p>
+                <p style="margin-top:10px;"><strong>${r.coste} 💰</strong></p>
+            `;
+            if (puede) {
+                item.onclick = () => comprarReliquia(nombre);
+            }
+            grid.appendChild(item);
+        });
+        
+        cont.appendChild(grid);
+        
+    } else if (seccion === 'curar') {
+        cont.innerHTML = '<h3>💊 Curar Equipo (2 💰 por Pokémon)</h3>';
+        if (game.soles < 2) {
+            cont.innerHTML += '<p style="color:#ff6b6b;">No tienes suficientes Soles</p>';
+            return;
+        }
+        
+        game.equipo.forEach((p, idx) => {
+            if (p.hpActual < p.hpMax) {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-success';
+                btn.innerHTML = `💚 Curar a ${p.nombre} (${p.hpActual}/${p.hpMax}) - 2💰`;
+                btn.onclick = () => curarPokemon(idx);
+                cont.appendChild(btn);
+            }
+        });
+    }
+}
+
+function comprarPokemon(op, coste) {
+    if (game.soles < coste || game.equipo.length >= 4) return;
+    const nuevo = crearPokemon(op);
+    nuevo.tier = op.tier;
+    game.equipo.push(nuevo);
+    game.soles -= coste;
+    document.getElementById('shop-soles').textContent = game.soles;
+    alert(`¡Has reclutado a ${op.nombre}!`);
+    mostrarSeccionTienda('pokemon');
+}
+
+function abrirTutor(pokemonIdx, movIdx) {
+    const p = game.equipo[pokemonIdx];
+    const movsDisponibles = Object.keys(MOVIMIENTOS);
+    const opciones = [];
+    while (opciones.length < 4) {
+        const pick = movsDisponibles[Math.floor(Math.random() * movsDisponibles.length)];
+        if (!opciones.includes(pick)) opciones.push(pick);
+    }
+    
+    let html = `<h4>Reemplazar "${p.movimientos[movIdx].nombre}" de ${p.nombre}:</h4>`;
+    opciones.forEach(nombre => {
+        const m = MOVIMIENTOS[nombre];
+        html += `<button class="btn" style="display:block; margin:5px 0; width:100%;" onclick="ejecutarTutor(${pokemonIdx}, ${movIdx}, '${nombre}')">${tipoBadge(m.tipo)} ${nombre} (Pot:${m.pot})</button>`;
+    });
+    html += `<button class="btn btn-danger" onclick="mostrarSeccionTienda('tutor')">Cancelar</button>`;
+    
+    document.getElementById('shop-content').innerHTML = html;
+}
+
+function ejecutarTutor(pokemonIdx, movIdx, nuevoMov) {
+    if (game.soles < 3) return;
+    const p = game.equipo[pokemonIdx];
+    const data = MOVIMIENTOS[nuevoMov];
+    p.movimientos[movIdx] = {
+        nombre: nuevoMov,
+        tipo: data.tipo,
+        cat: data.cat,
+        pot: data.pot,
+        ppActual: data.pp,
+        ppMax: data.pp
+    };
+    game.soles -= 3;
+    document.getElementById('shop-soles').textContent = game.soles;
+    alert(`¡${p.nombre} aprendió ${nuevoMov}!`);
+    mostrarSeccionTienda('tutor');
+}
+
+function comprarReliquia(nombre) {
+    const r = RELIQUIAS[nombre];
+    if (game.soles < r.coste) return;
+    game.reliquias.push(nombre);
+    game.soles -= r.coste;
+    document.getElementById('shop-soles').textContent = game.soles;
+    alert(`¡Has comprado ${nombre}!`);
+    mostrarSeccionTienda('reliquias');
+}
+
+function curarPokemon(idx) {
+    if (game.soles < 2) return;
+    const p = game.equipo[idx];
+    p.hpActual = p.hpMax;
+    p.movimientos.forEach(m => m.ppActual = m.ppMax);
+    game.soles -= 2;
+    document.getElementById('shop-soles').textContent = game.soles;
+    alert(`¡${p.nombre} ha sido curado completamente!`);
+    mostrarSeccionTienda('curar');
+}
+
+function siguienteOleada() {
+    game.oleada++;
+    if (game.oleada > 30) {
+        victoriaFinal();
+    } else {
+        iniciarOleada();
+    }
+}
+
+function gameOver() {
+    mostrarPantalla('gameover');
+    document.getElementById('go-wave').textContent = game.oleada;
+    document.getElementById('go-soles').textContent = game.soles;
+}
+
+function victoriaFinal() {
+    mostrarPantalla('victory');
+}
+</script>
+
+</body>
+</html>
